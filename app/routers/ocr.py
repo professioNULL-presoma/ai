@@ -20,11 +20,18 @@ router = APIRouter(tags=["ocr"])
     ),
 )
 def run_ocr(
-    files: list[UploadFile] | None = File(default=None, description="계약서 PDF 또는 이미지 (여러 개 가능)"),
-    s3_key: str | None = Form(default=None, description="S3 객체 키 (backend가 올린 파일)"),
+    # Swagger UI는 `format: binary`일 때만 파일 선택 버튼을 그린다.
+    # `| None`으로 선언하거나 FastAPI 기본값(contentMediaType)만 두면 문자열 입력칸이 나옴
+    files: list[UploadFile] = File(
+        default=[],
+        description="계약서 PDF 또는 이미지 (여러 개 가능)",
+        json_schema_extra={"items": {"type": "string", "format": "binary"}},
+    ),
+    s3_key: str = Form(default="", description="S3 객체 키 (backend가 올린 파일). 파일을 올릴 땐 비워 두기"),
 ) -> OcrResponse:
     # Swagger에서 파일 칸을 비워 보내면 빈 문자열이 들어오는 경우가 있어 걸러냄
-    files = [f for f in (files or []) if getattr(f, "filename", None)]
+    files = [f for f in files if getattr(f, "filename", None)]
+    s3_key = s3_key.strip()
     if bool(files) == bool(s3_key):
         raise HTTPException(400, "files와 s3_key 중 하나만 보내 주세요")
 

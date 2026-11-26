@@ -101,6 +101,8 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 - Swagger: http://localhost:8000/docs
+  - `POST /ocr` → **Try it out** → `files`의 **Add string item** → **파일 선택**으로 PDF·사진 고르기 → **Execute**
+  - 여러 장이면 **Add string item**을 장 수만큼 누르기. `s3_key`는 비워 두기
 - 헬스 체크: `GET /health` → `{"status": "ok"}`
 - 첫 OCR 요청 때 PaddleOCR 모델을 내려받고 올리느라 시간이 걸린다. 서버 시작 때 미리 올리려면 `OCR_PRELOAD=true`
 - 속도 (M1 CPU, 가상 계약서 2쪽): 모델이 올라간 뒤 약 18초

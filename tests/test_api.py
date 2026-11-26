@@ -59,3 +59,13 @@ def test_sort_reading_order_same_row_left_to_right():
         OcrLine(text="왼쪽", confidence=1, bbox=[10, 10, 100, 30]),
     ]
     assert [l.text for l in sort_reading_order(lines)] == ["왼쪽", "오른쪽", "아래"]
+
+
+def test_ocr_swagger_shows_file_picker():
+    """Swagger UI는 format: binary이고 null이 섞이지 않아야 파일 선택 버튼을 그린다."""
+    from app.main import app
+
+    props = app.openapi()["components"]["schemas"]["Body_run_ocr_ocr_post"]["properties"]
+    assert props["files"]["type"] == "array"
+    assert props["files"]["items"] == {"type": "string", "format": "binary"}
+    assert "anyOf" not in props["files"] and "anyOf" not in props["s3_key"]
