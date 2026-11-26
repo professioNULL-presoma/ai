@@ -103,6 +103,8 @@ uvicorn app.main:app --reload --port 8000
 - Swagger: http://localhost:8000/docs
 - 헬스 체크: `GET /health` → `{"status": "ok"}`
 - 첫 OCR 요청 때 PaddleOCR 모델을 내려받고 올리느라 시간이 걸린다. 서버 시작 때 미리 올리려면 `OCR_PRELOAD=true`
+- 속도 (M1 CPU, 가상 계약서 2쪽): 모델이 올라간 뒤 약 18초
+- 모델: 검출 `PP-OCRv5_mobile_det`, 인식 `korean_PP-OCRv5_mobile_rec`. 모델 이름을 지정하면 PaddleOCR의 `lang` 옵션이 무시되므로 인식 모델을 꼭 한국어로 지정한다
 
 ### 가상 계약서로 OCR 확인
 
