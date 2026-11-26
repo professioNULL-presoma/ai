@@ -87,6 +87,83 @@ frontend (모바일 웹) ──▶ backend (Spring Boot) ──내부 HTTP──
 | 12/26 | 기능 동결 |
 | 12/28 | 최종 발표 |
 
+## 로컬 실행
+
+Python 3.11 (PaddlePaddle이 3.13 이상을 아직 지원하지 않음)
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env        # 필요한 값 채우기 (S3는 s3_key로 받을 때만)
+
+uvicorn app.main:app --reload --port 8000
+```
+
+- Swagger: http://localhost:8000/docs
+- 헬스 체크: `GET /health` → `{"status": "ok"}`
+- 첫 OCR 요청 때 PaddleOCR 모델을 내려받고 올리느라 시간이 걸린다. 서버 시작 때 미리 올리려면 `OCR_PRELOAD=true`
+
+### 가상 계약서로 OCR 확인
+
+```bash
+python scripts/make_sample_contract.py      # samples/sample_contract.pdf 생성 (내용 전부 가짜)
+curl -F "files=@samples/sample_contract.pdf" http://localhost:8000/ocr
+```
+
+### 테스트
+
+```bash
+pytest
+```
+
+테스트는 가짜 OCR 엔진을 써서 PaddleOCR 없이도 돈다.
+
+## API
+
+### `POST /ocr` 계약서 글자 읽기
+
+`multipart/form-data`로 `files`(여러 개 가능)와 `s3_key` 중 **하나만** 보낸다.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| files | File[] | 계약서 PDF·JPG·PNG. 페이지 번호는 업로드 순서대로 이어진다 |
+| s3_key | string | backend가 S3에 올린 파일의 키 |
+
+**Response** `200`
+
+```json
+{
+  "page_count": 2,
+  "pages": [
+    {
+      "page": 1,
+      "width": 1654,
+      "height": 2339,
+      "text": "부동산(주택) 월세 계약서\n임대인과 임차인 쌍방은 ...",
+      "lines": [
+        { "text": "부동산(주택) 월세 계약서", "confidence": 0.998, "bbox": [166, 158, 666, 222] }
+      ],
+      "avg_confidence": 0.97,
+      "needs_retake": false
+    }
+  ],
+  "retake_pages": []
+}
+```
+
+- `bbox`: `[x1, y1, x2, y2]`, 페이지 이미지 픽셀 좌표 (좌상단 기준). PDF는 `PDF_DPI`로 렌더링한 크기 기준
+- `needs_retake`: 읽은 줄이 `OCR_MIN_LINES`보다 적거나 평균 신뢰도가 `OCR_MIN_CONFIDENCE`보다 낮은 페이지. `retake_pages`에 모아서 준다
+
+| 코드 | 언제 |
+|---|---|
+| 400 | `files`·`s3_key`를 둘 다 보내거나 둘 다 안 보냄, 페이지 수 초과, 깨진 파일 |
+| 413 | 파일 용량 초과 (`MAX_UPLOAD_MB`) |
+| 415 | 지원하지 않는 형식 |
+| 502 | S3에서 파일을 받지 못함 |
+
+업로드된 파일은 디스크에 저장하지 않고 메모리에서만 처리한다.
+
 ## 개발 규칙
 
 [harness/CONVENTION.md](https://github.com/professioNULL-presoma/harness/blob/main/CONVENTION.md)를 따릅니다.
