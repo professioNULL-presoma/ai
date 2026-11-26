@@ -115,6 +115,21 @@ python scripts/make_sample_contract.py      # samples/sample_contract.pdf 생성
 curl -F "files=@samples/sample_contract.pdf" http://localhost:8000/ocr
 ```
 
+### OCR 정확도 평가
+
+```bash
+python scripts/eval_ocr.py                                  # samples/ 안의 정답 있는 문서 전부
+python scripts/eval_ocr.py --note "det 1600으로 변경"         # 무엇을 바꿨는지 메모와 함께 기록
+python scripts/eval_ocr.py --json result.json --gt samples/sample_contract.gt.txt   # Swagger 응답 평가
+```
+
+- 정답 파일: 문서와 같은 이름의 `.gt.txt` (예: `sample_contract.pdf` → `sample_contract.gt.txt`). 페이지는 `=====` 줄로 구분
+- 지표
+  - **CER**: 틀린 글자 수 / 정답 글자 수. **공백 제외 CER**은 띄어쓰기 차이를 뺀 값
+  - **숫자 재현율**: 정답의 숫자(금액·날짜·면적)를 그대로 찾은 비율. 계약 요약이 숫자에 달려 있어 따로 본다
+- 실행할 때마다 [eval/ocr_history.csv](eval/ocr_history.csv)에 커밋·모델·설정과 함께 한 줄씩 쌓인다. OCR 설정을 바꾸면 돌려서 같이 커밋한다
+- 촬영본으로 평가하려면 가상 계약서를 인쇄해 찍은 사진을 `samples/`에 두고, 같은 이름으로 정답 파일을 복사한다 (실제 계약서 금지)
+
 ### 테스트
 
 ```bash

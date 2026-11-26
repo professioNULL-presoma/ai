@@ -1,6 +1,7 @@
 """OCR 테스트용 가상 원룸 임대차 계약서 PDF를 만든다.
 
 내용은 전부 가짜다. 실제 계약서는 레포에 두지 않는다.
+정답 텍스트(.gt.txt)도 함께 만들어 scripts/eval_ocr.py로 OCR 정확도를 잴 수 있다.
 사용: python scripts/make_sample_contract.py [출력경로]  (기본: samples/sample_contract.pdf)
 """
 
@@ -67,7 +68,9 @@ def main(out: Path) -> None:
             y += 8 if line else size
     out.parent.mkdir(parents=True, exist_ok=True)
     doc.save(out)
-    print(f"저장: {out}")
+    gt = out.with_name(out.stem + ".gt.txt")
+    gt.write_text("\n=====\n".join("\n".join(lines) for lines in PAGES) + "\n", encoding="utf-8")
+    print(f"저장: {out}, {gt}")
 
 
 if __name__ == "__main__":
