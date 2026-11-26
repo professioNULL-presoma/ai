@@ -21,11 +21,14 @@ class OcrEngine(Protocol):
 
 
 class PaddleOcrEngine:
-    def __init__(self, lang: str):
+    def __init__(self, det_model: str, rec_model: str, det_max_side: int):
         from paddleocr import PaddleOCR  # 임포트만으로도 느려서 여기서 불러옴
 
         self._ocr = PaddleOCR(
-            lang=lang,
+            text_detection_model_name=det_model,
+            text_recognition_model_name=rec_model,
+            text_det_limit_type="max",
+            text_det_limit_side_len=det_max_side,
             # 계약서는 정면 촬영·스캔이 대부분이라 문서 보정 모델은 끔 (속도 우선)
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
@@ -67,7 +70,8 @@ def get_engine() -> OcrEngine:
         with _engine_lock:
             if _engine is None:
                 logger.info("PaddleOCR 모델 로딩 중...")
-                _engine = PaddleOcrEngine(lang=get_settings().ocr_lang)
+                s = get_settings()
+                _engine = PaddleOcrEngine(s.ocr_det_model, s.ocr_rec_model, s.ocr_det_max_side)
                 logger.info("PaddleOCR 모델 로딩 완료")
     return _engine
 
