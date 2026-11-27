@@ -1,0 +1,2 @@
+timestamp,commit,file,pages,ref_chars,cer,cer_no_space,number_recall,seconds,det_model,rec_model,det_max_side,pdf_dpi,note
+2026-11-26T10:08:34,b120f0c,sample_contract.pdf,2,777,0.0476,0.0133,1.0000,18.5,PP-OCRv5_mobile_det,korean_PP-OCRv5_mobile_rec,1280,200,"기준선: 가상 PDF, mobile det, det 1280, 200dpi"

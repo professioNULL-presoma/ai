@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# 환경 변수 (절대 커밋 금지)
+.env
+.env.*
+!.env.example
+
+# 계약서 파일: 가상 샘플도 스크립트로 만들어 쓰고 커밋하지 않음
+samples/*
+!samples/.gitkeep
+*.pdf
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/

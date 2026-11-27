@@ -1,1 +1,192 @@
-# ai
+# 집사 ai
+
+집사 서비스의 AI 서버입니다. FastAPI로 OCR, 계약서 분석, 법령·판례 RAG, 평가를 맡습니다.
+
+## 서비스 개요
+
+| 항목 | 내용 |
+|---|---|
+| 이름 | 집사 |
+| 한 줄 소개 | 임차인(자취생·대학생·사회초년생)이 원룸 임대차 계약서를 찍어 올리면, AI가 꼭 알아야 할 조항과 집주인과 상의할 점을 쉬운 말로 짚어 주는 모바일 기준 웹 서비스 |
+| 사용자 | 임차인이 직접 사용. 법무사 등 전문가는 시스템 사용자가 아니며, 연구용 정답셋만 만든다. |
+| 연구 목표 | 전문가 계약서 검토를 AI로 대체. 자문단 정답셋 대비 AI 일치율을 측정하고 튜닝한다 (목표 대체율 50~80%). |
+| 차별점 | 범용 GPT·Claude보다 정확한 분석. 법령·판례 RAG(국가법령정보, 연혁별)와 자문단 노하우를 근거로 쓴다. |
+| 하지 않는 것 | 매물 소개, 법률 자문 제공 (결과 화면에 법률 자문이 아니라는 안내 표시) |
+
+## 시스템 구조
+
+```
+frontend (모바일 웹) ──▶ backend (Spring Boot) ──내부 HTTP──▶ ai (FastAPI, 이 레포)
+   민감정보 마스킹            회원·계약서·결과 API             OCR·분석·RAG·평가
+                              계약서 status 관리
+                                   │
+                                   ▼
+                              S3 (사진) / DB (URL만)
+```
+
+| 구성 | 역할 |
+|---|---|
+| frontend | 모바일 기준 웹. 민감정보 마스킹은 서버 전송 전 프론트에서 처리 |
+| backend | Spring Boot. 회원, 계약서, 분석 결과 조회 API. 계약서 status 관리 |
+| ai (이 레포) | FastAPI. OCR, 계약서 분석, RAG, 평가 |
+
+- **연동**: backend → ai 내부 HTTP 호출. 진행 상황은 계약서 status(분석 중 / 완료 / 실패)로 관리
+- **저장**: 사진은 S3, DB에는 URL만. 주민번호는 저장하지 않고 원본 사진은 분석 후 삭제
+- **배포**: EC2 수동 배포 먼저, CI/CD는 이후
+
+### 사용자 흐름
+
+로그인 → 홈 → 계약서 등록 → 분석 중 → 분석 결과 → 집주인에게 물어볼 질문
+
+## 이 레포가 맡는 기능
+
+### 1. 글자 읽기 (OCR)
+- 계약서 사진·PDF 여러 장에서 텍스트 추출
+- 조항 단위 분리, 페이지·위치 정보 유지 (원문 근거 표시용)
+- 글자를 못 읽은 페이지를 알려 줘서 그 페이지만 다시 찍게 함
+
+### 2. 조건 정리
+- 계약 요약 추출: 보증금, 월세, 관리비, 계약기간
+
+### 3. 확인할 점 찾기
+- 조항별 위험도: `주의` / `확인` / `양호`
+- 꼭 알아야 할 점: 임차인 부담 조건, 쉬운 설명, 할 수 있는 행동
+- 집주인과 상의할 점: 미리 확인하면 좋은 조건
+- 계약서에 빠진 내용 (예: 관리비 포함 항목)
+- 각 항목의 원문 근거 (계약서 문장과 위치, 예: 특약 3항)
+- 주의·확인 항목에서 집주인에게 물어볼 질문 자동 생성
+
+### 4. 법령·판례 RAG (4주차)
+- 주택임대차보호법 등 법령·판례를 연혁 포함해 적재
+- 분석 근거로 관련 법 조항 인용 (이후 유료 기능 후보)
+
+### 5. 평가 (연구 핵심)
+- 자문단 정답셋(`expert_answers`) 형식 정의
+- AI 결과와 정답셋 일치율 측정, 프롬프트·RAG 변경마다 비교 기록
+
+## 서비스 전체 기능 (참고)
+
+| 화면 | 기능 |
+|---|---|
+| 로그인/회원가입 | 이메일 가입, 약관 동의, 로그인 유지 |
+| 홈 | 분석 목록(날짜, 상태, 주의·확인 개수), 다시 보기, 삭제 |
+| 계약서 등록 | 촬영 안내, 여러 장 업로드, 미리보기, 필수 동의 2개 |
+| 분석 중 | 진행 단계 표시(글자 읽기 → 개인정보 가리기 → 조건 정리 → 확인할 점 찾기), 나가도 계속 진행 |
+| 분석 결과 | 요약, 위험도, 꼭 알아야 할 점, 상의할 점, 원문 근거 |
+| 질문 목록 | 자동 생성·직접 추가, 빼기, 전체 복사 |
+| 마이페이지 | 동의 철회, 회원 탈퇴 시 데이터 삭제 |
+| 꿀팁·혜택 | 청년 주거 혜택, 계약 체크리스트 |
+| 유료 기능 | 첫 분석 무료, 추가 분석·문자 정리·법 조항 근거 잠금 표시 |
+
+## 일정
+
+| 날짜 | 마일스톤 |
+|---|---|
+| 12/9 | 1차 배포·연동 완료 (`v0.1.0`) |
+| 12/16 | 통합 시연 (`v0.2.0`) |
+| 12/26 | 기능 동결 |
+| 12/28 | 최종 발표 |
+
+## 로컬 실행
+
+Python 3.11 (PaddlePaddle이 3.13 이상을 아직 지원하지 않음)
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env        # 필요한 값 채우기 (S3는 s3_key로 받을 때만)
+
+uvicorn app.main:app --reload --port 8000
+```
+
+- Swagger: http://localhost:8000/docs
+  - `POST /ocr` → **Try it out** → `files`의 **Add string item** → **파일 선택**으로 PDF·사진 고르기 → **Execute**
+  - 여러 장이면 **Add string item**을 장 수만큼 누르기. `s3_key`는 비워 두기
+- 헬스 체크: `GET /health` → `{"status": "ok"}`
+- 첫 OCR 요청 때 PaddleOCR 모델을 내려받고 올리느라 시간이 걸린다. 서버 시작 때 미리 올리려면 `OCR_PRELOAD=true`
+- 속도 (M1 CPU, 가상 계약서 2쪽): 모델이 올라간 뒤 약 18초
+- 모델: 검출 `PP-OCRv5_mobile_det`, 인식 `korean_PP-OCRv5_mobile_rec`. 모델 이름을 지정하면 PaddleOCR의 `lang` 옵션이 무시되므로 인식 모델을 꼭 한국어로 지정한다
+
+### 가상 계약서로 OCR 확인
+
+```bash
+python scripts/make_sample_contract.py      # samples/sample_contract.pdf 생성 (내용 전부 가짜)
+curl -F "files=@samples/sample_contract.pdf" http://localhost:8000/ocr
+```
+
+### OCR 정확도 평가
+
+```bash
+python scripts/eval_ocr.py                                  # samples/ 안의 정답 있는 문서 전부
+python scripts/eval_ocr.py --note "det 1600으로 변경"         # 무엇을 바꿨는지 메모와 함께 기록
+python scripts/eval_ocr.py --json result.json --gt samples/sample_contract.gt.txt   # Swagger 응답 평가
+```
+
+- 정답 파일: 문서와 같은 이름의 `.gt.txt` (예: `sample_contract.pdf` → `sample_contract.gt.txt`). 페이지는 `=====` 줄로 구분
+- 지표
+  - **CER**: 틀린 글자 수 / 정답 글자 수. **공백 제외 CER**은 띄어쓰기 차이를 뺀 값
+  - **숫자 재현율**: 정답의 숫자(금액·날짜·면적)를 그대로 찾은 비율. 계약 요약이 숫자에 달려 있어 따로 본다
+- 실행할 때마다 [eval/ocr_history.csv](eval/ocr_history.csv)에 커밋·모델·설정과 함께 한 줄씩 쌓인다. OCR 설정을 바꾸면 돌려서 같이 커밋한다
+- 촬영본으로 평가하려면 가상 계약서를 인쇄해 찍은 사진을 `samples/`에 두고, 같은 이름으로 정답 파일을 복사한다 (실제 계약서 금지)
+
+### 테스트
+
+```bash
+pytest
+```
+
+테스트는 가짜 OCR 엔진을 써서 PaddleOCR 없이도 돈다.
+
+## API
+
+### `POST /ocr` 계약서 글자 읽기
+
+`multipart/form-data`로 `files`(여러 개 가능)와 `s3_key` 중 **하나만** 보낸다.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| files | File[] | 계약서 PDF·JPG·PNG. 페이지 번호는 업로드 순서대로 이어진다 |
+| s3_key | string | backend가 S3에 올린 파일의 키 |
+
+**Response** `200`
+
+```json
+{
+  "page_count": 2,
+  "pages": [
+    {
+      "page": 1,
+      "width": 1654,
+      "height": 2339,
+      "text": "부동산(주택) 월세 계약서\n임대인과 임차인 쌍방은 ...",
+      "lines": [
+        { "text": "부동산(주택) 월세 계약서", "confidence": 0.998, "bbox": [166, 158, 666, 222] }
+      ],
+      "avg_confidence": 0.97,
+      "needs_retake": false
+    }
+  ],
+  "retake_pages": []
+}
+```
+
+- `bbox`: `[x1, y1, x2, y2]`, 페이지 이미지 픽셀 좌표 (좌상단 기준). PDF는 `PDF_DPI`로 렌더링한 크기 기준
+- `needs_retake`: 읽은 줄이 `OCR_MIN_LINES`보다 적거나 평균 신뢰도가 `OCR_MIN_CONFIDENCE`보다 낮은 페이지. `retake_pages`에 모아서 준다
+
+| 코드 | 언제 |
+|---|---|
+| 400 | `files`·`s3_key`를 둘 다 보내거나 둘 다 안 보냄, 페이지 수 초과, 깨진 파일 |
+| 413 | 파일 용량 초과 (`MAX_UPLOAD_MB`) |
+| 415 | 지원하지 않는 형식 |
+| 502 | S3에서 파일을 받지 못함 |
+
+업로드된 파일은 디스크에 저장하지 않고 메모리에서만 처리한다.
+
+## 개발 규칙
+
+[harness/CONVENTION.md](https://github.com/professioNULL-presoma/harness/blob/main/CONVENTION.md)를 따릅니다.
+
+- 기능 브랜치 → `dev` (Squash), 배포 때 `dev` → `main` (Merge commit), PR 승인 1명
+- `.env`는 커밋하지 않는다. `.env.example`(값 비운 버전)만 커밋
+- 실제 계약서·개인정보는 커밋·이슈·PR에 올리지 않는다. 가상 샘플만 사용
